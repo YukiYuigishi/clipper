@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+
+      - name: Build for Windows
+        run: cargo build --release --target x86_64-pc-windows-gnu
+
+      - name: Prepare release assets
+        run: |
+          set -x
+          # The executable will be in the target directory
+          EXE_PATH="target/x86_64-pc-windows-gnu/release/clipper.exe"
+          # Get the version from the tag, e.g., v1.2.3 -> 1.2.3
+          VERSION=${{ github.ref_name }}
+          # Define the name of the zip archive
+          ASSET_NAME="clipper-${VERSION}-x86_64-windows.zip"
+          # Create the zip file
+          zip -j "${ASSET_NAME}" "${EXE_PATH}"
+          # Store the asset name for the next step
+          echo "ASSET_NAME=${ASSET_NAME}" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.ASSET_NAME }}
